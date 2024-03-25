@@ -2,14 +2,16 @@ package com.example.myapplication;
 
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.Toast;
+
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 
@@ -51,14 +53,42 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void dispatchTakePictureIntent() {
-        // Implementa la lógica para capturar una imagen utilizando la cámara del dispositivo
+        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
+            startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK && data != null) {
+            Bundle extras = data.getExtras();
+            Bitmap imageBitmap = (Bitmap) extras.get("data");
+            Photograph photograph = new Photograph(imageBitmap, "");
+            photographs.add(photograph);
+            adapter.notifyDataSetChanged();
+        }
     }
 
     private void savePhotograph() {
-        // Implementa la lógica para guardar la fotografía en la base de datos SQLite
+        for (Photograph photograph : photographs) {
+            byte[] imageBytes = getBytesFromBitmap(photograph.getImage());
+            databaseHelper.insertPhotograph(imageBytes, photograph.getDescription());
+        }
+        Toast.makeText(this, "Fotografías guardadas exitosamente", Toast.LENGTH_SHORT).show();
     }
 
     private void loadPhotographs() {
-        // Implementa la lógica para cargar las fotografías desde la base de datos y actualizar el adaptador
+        ArrayList<Photograph> savedPhotographs = databaseHelper.getAllPhotographs();
+        photographs.clear();
+        photographs.addAll(savedPhotographs);
+        adapter.notifyDataSetChanged();
+    }
+
+    private byte[] getBytesFromBitmap(Bitmap bitmap) {
+        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
+        return stream.toByteArray();
     }
 }
